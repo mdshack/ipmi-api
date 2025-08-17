@@ -1,0 +1,12 @@
+.git
+.gitignore
+README.md
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+.air.toml
+tmp/
+.env
+.env.local
+*.log
+coverage.out
