@@ -1,0 +1,19 @@
+{
+  "packages": {
+    ".": {
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "go",
+      "bump-minor-pre-major": false,
+      "bump-patch-for-minor-pre-major": false,
+      "draft": false,
+      "prerelease": false,
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "pkg/assets/openapi.json",
+          "jsonpath": "$.info.version"
+        }
+      ]
+    }
+  }
+}

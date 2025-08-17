@@ -109,7 +109,7 @@ DEFAULT_IPMI_PASSWORD=          # Default IPMI password
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/ipmi-api.git
+git clone https://github.com/mdshack/ipmi-api.git
 cd ipmi-api
 
 # Install dependencies
@@ -122,8 +122,8 @@ go run main.go
 ### Using Docker
 
 ```bash
-# Build the Docker image
-docker build -t ipmi-api .
+# Pull the Docker image
+docker pull mdshack/ipmi-api:latest
 
 # Run the container
 docker run -d \
@@ -132,7 +132,7 @@ docker run -d \
   -e DEFAULT_IPMI_HOST=your.ipmi.host \
   -e DEFAULT_IPMI_USERNAME=admin \
   -e DEFAULT_IPMI_PASSWORD=secret \
-  ipmi-api
+  mdshack/ipmi-api:latest
 ```
 
 ## API Documentation
