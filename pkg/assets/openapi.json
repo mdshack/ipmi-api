@@ -1,0 +1,1594 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "IPMI API Wrapper",
+    "description": "A lightweight REST API wrapper for the go-ipmi library that exposes IPMI functionality over HTTP",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local development server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Health check endpoints"
+    },
+    {
+      "name": "System",
+      "description": "System information endpoints"
+    },
+    {
+      "name": "Power",
+      "description": "Power management endpoints"
+    },
+    {
+      "name": "Sensors",
+      "description": "Sensor monitoring endpoints"
+    },
+    {
+      "name": "Chassis",
+      "description": "Chassis management endpoints"
+    },
+    {
+      "name": "FRU",
+      "description": "Field Replaceable Unit endpoints"
+    },
+    {
+      "name": "Users",
+      "description": "User management endpoints"
+    },
+    {
+      "name": "LAN",
+      "description": "LAN configuration endpoints"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "APIResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "description": "Response data varies by endpoint"
+          },
+          "error": {
+            "type": "string",
+            "example": "Error message if success is false"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2023-01-01T12:00:00Z"
+          },
+          "execution_time_ms": {
+            "type": "integer",
+            "example": 150
+          }
+        }
+      },
+      "SystemInfo": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "device_revision": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "firmware_revision": {
+            "type": "string"
+          },
+          "ipmi_version": {
+            "type": "string"
+          },
+          "manufacturer_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "product_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "provide_device_sdrs": {
+            "type": "boolean"
+          },
+          "device_available": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PowerStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["on", "off", "unknown"]
+          }
+        }
+      },
+      "ChassisStatus": {
+        "type": "object",
+        "properties": {
+          "power_state": {
+            "type": "string"
+          },
+          "last_power_event": {
+            "type": "string"
+          }
+        }
+      },
+      "BootDevice": {
+        "type": "object",
+        "properties": {
+          "device": {
+            "type": "string"
+          }
+        }
+      },
+      "Sensor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "reading": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "has_analog": {
+            "type": "boolean"
+          },
+          "entity_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "entity_instance": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "callin": {
+            "type": "boolean"
+          },
+          "link_auth_enabled": {
+            "type": "boolean"
+          },
+          "ipmi_messaging_enabled": {
+            "type": "boolean"
+          },
+          "max_priv_level": {
+            "type": "string"
+          }
+        }
+      },
+      "FRUData": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "device_name": {
+            "type": "string"
+          },
+          "present": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SELEntry": {
+        "type": "object",
+        "properties": {
+          "record_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "type": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          }
+        }
+      },
+      "LANConfig": {
+        "type": "object",
+        "properties": {
+          "ip_address": {
+            "type": "string"
+          },
+          "mac_address": {
+            "type": "string"
+          },
+          "subnet_mask": {
+            "type": "string"
+          },
+          "gateway_ip": {
+            "type": "string"
+          },
+          "gateway_mac": {
+            "type": "string"
+          },
+          "primary_dns": {
+            "type": "string"
+          },
+          "secondary_dns": {
+            "type": "string"
+          },
+          "vlan_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "vlan_priority": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      }
+    },
+    "parameters": {
+      "XIPMIHost": {
+        "name": "X-IPMI-Host",
+        "in": "header",
+        "description": "IPMI target host",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "XIPMIPort": {
+        "name": "X-IPMI-Port",
+        "in": "header",
+        "description": "IPMI target port",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "format": "int32"
+        }
+      },
+      "XIPMIUsername": {
+        "name": "X-IPMI-Username",
+        "in": "header",
+        "description": "IPMI username",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "XIPMIPassword": {
+        "name": "X-IPMI-Password",
+        "in": "header",
+        "description": "IPMI password",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "description": "Basic health check endpoint",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Readiness probe",
+        "description": "Readiness probe for load balancers",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/live": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Liveness probe",
+        "description": "Liveness probe for Kubernetes",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/system/info": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Get system information",
+        "description": "Retrieves device ID and system information",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                },
+                "examples": {
+                  "response": {
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "device_id": 32,
+                        "device_revision": 1,
+                        "firmware_revision": "1.23",
+                        "ipmi_version": "2.0",
+                        "manufacturer_id": 12345,
+                        "product_id": 54321,
+                        "provide_device_sdrs": true,
+                        "device_available": true
+                      },
+                      "timestamp": "2023-01-01T12:00:00Z",
+                      "execution_time_ms": 150
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/system/guid": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Get system GUID",
+        "description": "Retrieves the system GUID",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/power/status": {
+      "get": {
+        "tags": ["Power"],
+        "summary": "Get power status",
+        "description": "Retrieves the current power status of the system",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                },
+                "examples": {
+                  "response": {
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "status": "on"
+                      },
+                      "timestamp": "2023-01-01T12:00:00Z",
+                      "execution_time_ms": 120
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/power/on": {
+      "post": {
+        "tags": ["Power"],
+        "summary": "Power on system",
+        "description": "Sends a power on command to the system",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/power/off": {
+      "post": {
+        "tags": ["Power"],
+        "summary": "Power off system",
+        "description": "Sends a power off command to the system",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/power/cycle": {
+      "post": {
+        "tags": ["Power"],
+        "summary": "Power cycle system",
+        "description": "Sends a power cycle command to the system",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/power/reset": {
+      "post": {
+        "tags": ["Power"],
+        "summary": "Reset system",
+        "description": "Sends a hard reset command to the system",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/sensors": {
+      "get": {
+        "tags": ["Sensors"],
+        "summary": "Get all sensors",
+        "description": "Retrieves all sensor data from the system",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/sel": {
+      "get": {
+        "tags": ["Sensors"],
+        "summary": "Get system event log",
+        "description": "Retrieves the system event log entries",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/sel/clear": {
+      "post": {
+        "tags": ["Sensors"],
+        "summary": "Clear system event log",
+        "description": "Clears the system event log",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/chassis/status": {
+      "get": {
+        "tags": ["Chassis"],
+        "summary": "Get chassis status",
+        "description": "Retrieves the chassis status",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/chassis/bootdev": {
+      "get": {
+        "tags": ["Chassis"],
+        "summary": "Get boot device",
+        "description": "Retrieves the current boot device",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/chassis/bootdev/set": {
+      "post": {
+        "tags": ["Chassis"],
+        "summary": "Set boot device",
+        "description": "Sets the boot device",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication or invalid request body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/fru": {
+      "get": {
+        "tags": ["FRU"],
+        "summary": "Get all FRU data",
+        "description": "Retrieves all FRU (Field Replaceable Unit) data",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "List users",
+        "description": "Lists all IPMI users",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/users/create": {
+      "post": {
+        "tags": ["Users"],
+        "summary": "Create user",
+        "description": "Creates a new IPMI user",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "user_id": {
+                    "type": "integer"
+                  },
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "priv_level": {
+                    "type": "string",
+                    "enum": ["callback", "user", "operator", "admin", "oem"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication or invalid request body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/users/{user_id}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get user",
+        "description": "Retrieves information about a specific IPMI user",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Users"],
+        "summary": "Update user",
+        "description": "Updates an existing IPMI user",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "priv_level": {
+                    "type": "string",
+                    "enum": ["callback", "user", "operator", "admin", "oem"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication or invalid request body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Delete user",
+        "description": "Deletes an IPMI user",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ipmi/lan": {
+      "get": {
+        "tags": ["LAN"],
+        "summary": "Get LAN configuration",
+        "description": "Retrieves the LAN configuration",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["LAN"],
+        "summary": "Set LAN configuration",
+        "description": "Sets the LAN configuration",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIPMIHost"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPort"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIUsername"
+          },
+          {
+            "$ref": "#/components/parameters/XIPMIPassword"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LANConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing authentication or invalid request body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

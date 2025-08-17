@@ -10,8 +10,12 @@ A lightweight REST API wrapper for the `go-ipmi` library that exposes all IPMI f
 - Standardized JSON responses
 - Health check endpoints
 - Docker support for easy deployment
+- Interactive API documentation with Scalar
 
 ## API Endpoints
+
+- `GET /openapi.json` - OpenAPI specification for the service
+- `GET /docs` - Scalar API reference, based on the `openapi.json` specification
 
 ### Health Checks
 - `GET /health` - Basic health check
@@ -130,6 +134,10 @@ docker run -d \
   -e DEFAULT_IPMI_PASSWORD=secret \
   ipmi-api
 ```
+
+## API Documentation
+
+Interactive API documentation is available at `/docs` endpoint when the server is running. This documentation is powered by [Scalar](https://scalar.com/), a modern and lightweight alternative to Swagger UI.
 
 ## Usage Examples
 
