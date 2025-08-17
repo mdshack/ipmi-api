@@ -38,7 +38,7 @@ USER 65534:65534
 EXPOSE 8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \\
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD ["/ipmi-api", "healthcheck"]
 
 # Run the application
